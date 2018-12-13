@@ -1,7 +1,6 @@
 from __future__ import print_function
 import os
 import re
-from six.moves.urllib.request import urlopen
 from six.moves.urllib.error import HTTPError
 import shutil
 import argparse
@@ -9,13 +8,25 @@ import mistune
 import bs4 as BeautifulSoup
 import socket
 import time
+import requests
+
+# encoding=utf8  
+import sys  
+try:
+    reload(sys)
+except NameError:
+    pass
+try:
+    sys.setdefaultencoding('utf8')
+except AttributeError:
+    pass
 
 def download_pdf(link, location, name):
     try:
-        response = urlopen(link, timeout=500)
-        file = open(os.path.join(location, name), 'w')
-        file.write(response.read())
-        file.close()
+        response = requests.get(link)
+        with open(os.path.join(location, name), 'wb') as f:
+        	f.write(response.content)
+        	f.close()
     except HTTPError:
         print('>>> Error 404: cannot be downloaded!\n') 
         raise   
@@ -28,9 +39,11 @@ def clean_pdf_link(link):
         link = link.replace('abs', 'pdf')   
         if not(link.endswith('.pdf')):
             link = '.'.join((link, 'pdf'))
+
+    print(link)
     return link
 
-def clean_text(text, replacements = {' ': '_', '/': '_', '.': '', '"': ''}):
+def clean_text(text, replacements = {':': '_', ' ': '_', '/': '_', '.': '', '"': ''}):
     for key, rep in replacements.items():
         text = text.replace(key, rep)
     return text    
@@ -95,13 +108,14 @@ if __name__ == '__main__':
                 if link is not None:
                     link = clean_pdf_link(link.attrs['href'])
                     ext = get_extension(link)
+                    print(ext)
                     if not ext in forbidden_extensions:
                         print(shorten_title(point.text) + ' (' + link + ')')
                         try:
                             name = clean_text(point.text.split('[' + ext + ']')[0])
                             fullname = '.'.join((name, ext))
                             if not os.path.exists('/'.join((current_directory, fullname)) ):
-                               download_pdf(link, current_directory, '.'.join((name, ext)))
+                                download_pdf(link, current_directory, '.'.join((name, ext)))
                         except KeyboardInterrupt:
                             try:
                                 print("Press Ctrl-C in 1 second to quit")
